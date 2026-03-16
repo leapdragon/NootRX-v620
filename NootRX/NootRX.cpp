@@ -84,8 +84,18 @@ void NootRXMain::processPatcher(KernelPatcher &patcher) {
     for (size_t i = 0, ii = 0; i < devInfo->videoExternal.size(); i++) {
         auto *device = OSDynamicCast(IOPCIDevice, devInfo->videoExternal[i].video);
         if (device == nullptr) { continue; }
+        auto devId = WIOKit::readPCIConfigValue(device, WIOKit::kIOPCIConfigDeviceID);
         if (WIOKit::readPCIConfigValue(device, WIOKit::kIOPCIConfigVendorID) == WIOKit::VendorID::ATIAMD &&
-            (WIOKit::readPCIConfigValue(device, WIOKit::kIOPCIConfigDeviceID) & 0xFF00) == 0x7300) {
+            (devId & 0xFF00) == 0x7300) {
+            // Skip unsupported device IDs (e.g. Radeon Pro V620 = 0x73A1)
+            switch (devId) {
+                case 0x73A2: case 0x73A3: case 0x73A5: case 0x73AB:
+                case 0x73AF: case 0x73BF: case 0x73DF: case 0x73E0:
+                case 0x73E1: case 0x73E3: case 0x73EF: case 0x73FF:
+                    break;
+                default:
+                    continue;
+            }
             this->dGPU = device;
             snprintf(slotName, arrsize(slotName), "GFX%zu", ii++);
             WIOKit::renameDevice(device, slotName);
